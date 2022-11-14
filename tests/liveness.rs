@@ -1,11 +1,12 @@
+use std::net::TcpListener;
+
 #[tokio::test]
 async fn liveness_works() {
-    spawn_app().await;
-
+    let address = spawn_app();
     let client = reqwest::Client::new();
 
     let response = client
-        .get("http://127.0.0.1:6005/liveness")
+        .get(&format!("{}/liveness", &address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -14,7 +15,10 @@ async fn liveness_works() {
     assert_eq!(Some(0), response.content_length());
 }
 
-async fn spawn_app() {
-    let server = rustapi::run("127.0.0.1:6005").expect("Failed to bind address");
+fn spawn_app() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind to random port");
+    let port = listener.local_addr().unwrap().port();
+    let server = rustapi::run(listener).expect("Failed to bind address");
     let _ = tokio::spawn(server);
+    format!("http://127.0.0.1:{}", port)
 }
